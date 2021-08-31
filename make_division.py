@@ -9,8 +9,11 @@ def make_divisor_by(n: int) -> Generic[T]:
     return numerator
 
 def main():
-    divided_by_2 = make_divisor_by(2)
-    print(divided_by_2(10))
+    division_by_2 = make_divisor_by(2)
+    print(division_by_2(10))
+
+    division_by_3 = make_divisor_by(3)
+    print(division_by_3(90))
 
 if __name__ == '__main__':
     main()
