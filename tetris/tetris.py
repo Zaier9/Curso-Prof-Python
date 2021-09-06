@@ -230,7 +230,7 @@ class BlocksGroup(pygame.sprite.OrderedUpdates):
                         except BottomReached:
                             break
 
-                self.update_grid():
+                self.update_grid()
                 self._check_line_completion()
                 break
 
@@ -270,5 +270,141 @@ class BlocksGroup(pygame.sprite.OrderedUpdates):
             self._create_new_block()
         else:
             self.update_grid()
+
+    def move_current_block(self):
+        if self._current_block_movement_heading in None:
+            return
+        action = {
+            pygame.K_DOWN: self.current_block.move_down,
+            pygame.K_LEFT: self.current_block.move_left,
+            pygame.K_RIGHT: self.current_block.move_right
+        }
+        try:
+            action[self._current_block_movement_heading](self)
+        except BottomReached:
+            self.stop_moving_current_block()
+            self._create_new_block()
+        else:
+            self.update_grid()
+
+    def start_moving_current_block(self, key):
+        if self._current_block_movement_heading is not None:
+            self._ignore_next_stop = True
+        self._current_block_movement_heading = key
+
+    def stop_moving_current_block(self):
+        if self._ignore_next_stop:
+            self._ignore_next_stop = False
+        else:
+            self._current_block_movement_heading = None
+
+
+    def rotate_current_block(self):
+        if not isinstance(self.current_block, SquareBlock):
+            self.current_block.rotate(self)
+            self.update_grid()
+def draw_grid(background):
+    """Draw the background grid."""
+    grid_color = 50, 50, 50
+    # Vertical lines.
+    for i in range(11):
+        x = TILE_SIZE * i
+        pygame.draw.line(
+            background, grid_color, (x, 0), (x, GRID_HEIGHT)
+        )
+    # Horizontal liens.
+    for i in range(21):
+        y = TILE_SIZE * i
+        pygame.draw.line(
+            background, grid_color, (0, y), (GRID_WIDTH, y)
+        )
+def draw_centered_surface(screen, surface, y):
+    screen.blit(surface, (400 - surface.get_width()/2, y))
+def main():
+    pygame.init()
+    pygame.display.set_caption("Tetris con PyGame")
+    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    run = True
+    paused = False
+    game_over = False
+    # Create background.
+    background = pygame.Surface(screen.get_size())
+    bgcolor = (0, 0, 0)
+    background.fill(bgcolor)
+    # Draw the grid on top of the background.
+    draw_grid(background)
+    # This makes blitting faster.
+    background = background.convert()
+
+    try:
+        font = pygame.font.Font("Roboto-Regular.ttf", 20)
+    except OSError:
+        # If the font file is not available, the default will be used.
+        pass
+    next_block_text = font.render(
+        "Siguiente figura:", True, (255, 255, 255), bgcolor)
+    score_msg_text = font.render(
+        "Puntaje:", True, (255, 255, 255), bgcolor)
+    game_over_text = font.render(
+        "¡Juego terminado!", True, (255, 220, 0), bgcolor)
+
+    # Event constants.
+    MOVEMENT_KEYS = pygame.K_LEFT, pygame.K_RIGHT, pygame.K_DOWN
+    EVENT_UPDATE_CURRENT_BLOCK = pygame.USEREVENT + 1
+    EVENT_MOVE_CURRENT_BLOCK = pygame.USEREVENT + 2
+    pygame.time.set_timer(EVENT_UPDATE_CURRENT_BLOCK, 1000)
+    pygame.time.set_timer(EVENT_MOVE_CURRENT_BLOCK, 100)
+
+    blocks = BlocksGroup()
+
+    while run:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                break
+            elif event.type == pygame.KEYUP:
+                if not paused and not game_over:
+                    if event.key in MOVEMENT_KEYS:
+                        blocks.stop_moving_current_block()
+                    elif event.key == pygame.K_UP:
+                        blocks.rotate_current_block()
+                if event.key == pygame.K_p:
+                    paused = not paused
+
+            # Stop moving blocks if the game is over or paused.
+            if game_over or paused:
+                continue
+
+            if event.type == pygame.KEYDOWN:
+                if event.key in MOVEMENT_KEYS:
+                    blocks.start_moving_current_block(event.key)
+
+            try:
+                if event.type == EVENT_UPDATE_CURRENT_BLOCK:
+                    blocks.update_current_block()
+                elif event.type == EVENT_MOVE_CURRENT_BLOCK:
+                    blocks.move_current_block()
+            except TopReached:
+                game_over = True
+
+        # Draw background and grid.
+        screen.blit(background, (0, 0))
+        # Blocks.
+        blocks.draw(screen)
+        # Sidebar with misc. information.
+        draw_centered_surface(screen, next_block_text, 50)
+        draw_centered_surface(screen, blocks.next_block.image, 100)
+        draw_centered_surface(screen, score_msg_text, 240)
+        score_text = font.render(
+            str(blocks.score), True, (255, 255, 255), bgcolor)
+        draw_centered_surface(screen, score_text, 270)
+        if game_over:
+            draw_centered_surface(screen, game_over_text, 360)
+        # Update.
+        pygame.display.flip()
+
+    pygame.quit()
+if __name__ == "__main__":
+    main()
         
 
